@@ -20,6 +20,8 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('Telefono')->nullable();
+            // Foto de perfil (URL completa)
+            $table->string('Foto_url')->nullable();
             $table->timestamp('Fecha_registro')->useCurrent();
             $table->rememberToken();
 

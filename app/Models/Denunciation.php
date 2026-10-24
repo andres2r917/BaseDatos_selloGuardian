@@ -24,6 +24,9 @@ class Denunciation extends Model
         'Fecha_asignacion',
     ];
 
+    // Nunca se envía quién hizo la denuncia (hay denuncias anónimas)
+    protected $hidden = ['Id_usuario'];
+
     public function user() {
         return $this->belongsTo('App\Models\User', 'Id_usuario');
     }

@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('Documento_identidad')->unique();
             $table->date('Fecha_nacimiento');
-            $table->string('Direccion');
+            $table->string('Direccion')->nullable();
             $table->string('Tipo_vivienda');
-            $table->string('Ocupacion');
+            $table->string('Ocupacion')->nullable();
             $table->decimal('Salario', 10, 2)->nullable();
             $table->string('Telefono')->nullable();
             // Booleano real, no string — antes decía "Tienes_hijos" y no coincidía con el modelo

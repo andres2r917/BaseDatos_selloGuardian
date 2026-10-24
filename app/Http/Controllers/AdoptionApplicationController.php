@@ -2,65 +2,38 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Adoption_application;
+use App\Models\Pet;
+use Illuminate\Http\Request;
+
 class AdoptionApplicationController extends Controller
 {
-  public function consulta1()
-  {
-      return response()->json(Adoption_application::with(['userCivil', 'pet', 'foundation'])->get());
-  }
+    // Formulario de Adopcion.jsx
+    public function store(Request $request)
+    {
+        $datos = $request->validate([
+            'Id_mascota' => 'required|exists:pets,id',
+            'Mensaje_presentacion' => 'required|string',
+            'Experiencia_mascotas' => 'required|string',
+            'Tiempo_disponible' => 'required|string|max:50',
+            'Compromiso_veterinario' => 'boolean',
+        ]);
 
-  public function index()
-  {
-      return response()->json(Adoption_application::all());
-  }
+        // Sin perfil no se puede adoptar: Perfil.jsx crea la fila en usercivils
+        $perfil = $request->user()->userCivil;
 
-  public function show(Adoption_application $adoption_application)
-  {
-      return response()->json($adoption_application);
-  }
+        if (! $perfil) {
+            return response()->json(['message' => 'Completa tu perfil antes de solicitar una adopción.'], 422);
+        }
 
-  public function store(Request $request)
-  {
-      $request->validate([
-          'Id_usuarioCivil' => 'required',
-          'Id_mascota'      => 'required',
-      ]);
+        $mascota = Pet::findOrFail($datos['Id_mascota']);
 
-      return response()->json(Adoption_application::create($request->all()), 201);
-  }
+        $solicitud = Adoption_application::create($datos + [
+            // Estos dos salen del servidor, no del cliente
+            'Id_usuarioCivil' => $perfil->id,
+            'Id_fundacion' => $mascota->Id_fundacion,
+        ]);
 
-  public function update(Request $request, Adoption_application $adoption_application)
-  {
-      $adoption_application->update($request->all());
-
-      return response()->json($adoption_application);
-  }
-
-  public function destroy(Adoption_application $adoption_application)
-  {
-      $adoption_application->delete();
-
-      return response()->json(['message' => 'Solicitud de adopción eliminada correctamente']);
-  }
-
-  public function consulta10(){
-    $adoptionApplications = Adoption_application::where('Estado_solicitud', 'pendiente')->get();
-    return $adoptionApplications;
-  }
-
-  public function consulta11(){
-    $adoptionApplications = Adoption_application::whereDate('Fecha_envio', '2026-05-20')->get();
-    return $adoptionApplications;
-  }
-  public function prueba_application(){
-    $application = Adoption_application::find(1);
-    return [
-        'application' => $application,
-        'userCivil' => $application->userCivil,
-        'pet' => $application->pet,
-        'foundation' => $application->foundation,
-    ];
-}
+        return response()->json($solicitud, 201);
+    }
 }

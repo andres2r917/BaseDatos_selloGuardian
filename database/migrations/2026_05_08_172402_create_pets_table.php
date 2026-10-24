@@ -16,10 +16,16 @@ return new class extends Migration
             $table->string('Nombre');
             $table->string('Especie')->default('perro'); // perro, gato, ave, etc
             $table->string('Raza');
+            $table->string('Sexo')->nullable();
             $table->string('Edad_estimada');
             // Sin ñ en el nombre de columna, evita problemas de encoding al mapear JSON en el frontend
             $table->string('Tamano');
             $table->string('Estado_salud');
+            $table->string('Temperamento')->nullable();
+            $table->boolean('Vacunado')->default(false);
+            $table->boolean('Esterilizado')->default(false);
+            $table->boolean('Desparasitado')->default(false);
+            $table->string('Convivencia')->nullable();
             $table->text('Descripcion_personalidad');
             $table->string('Foto_url')->nullable();
             $table->string('Estado_adopcion')->default('disponible');

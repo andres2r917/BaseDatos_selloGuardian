@@ -22,6 +22,7 @@ class Foundation extends Model
         'Redes',
         'Email_contacto',
         'Descripcion',
+        'Capacidad',
         'Id_usuario',
     ];
 

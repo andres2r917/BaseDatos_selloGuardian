@@ -28,6 +28,8 @@ return new class extends Migration
             // Correo público/de contacto de la fundación, no el correo de login (ese es users.email)
             $table->string('Email_contacto')->nullable();
             $table->text('Descripcion')->nullable();
+            // Cupos del refugio (FundacionAjustes.jsx)
+            $table->unsignedInteger('Capacidad')->default(50);
 
             // Ya no hay columna de contraseña aquí: el login de fundación usa users.password
             $table->unsignedBigInteger('Id_usuario')->unique();

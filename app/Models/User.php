@@ -22,6 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'Telefono',
+        'Foto_url',
         'Fecha_registro',
         'Id_rol',
     ];
@@ -50,7 +51,7 @@ class User extends Authenticatable
         return $this->belongsTo('App\Models\Role', 'Id_rol');
     }
     public function userCivil() {
-        return $this->hasOne('App\Models\UserCivil', 'Id_usuario');
+        return $this->hasOne('App\Models\Usercivil', 'Id_usuario');
     }
     public function administrator() {
         return $this->hasOne('App\Models\Administrator', 'Id_usuario');
