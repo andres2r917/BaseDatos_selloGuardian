@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class DenunciationController extends Controller
 {
-    // Solo se envían estos datos de la fundación asignada (no su cédula ni su correo)
+    // De la fundación asignada solo se envían estos datos
     private const FUNDACION = 'fundacionAsignada:id,Nombre_organizacion,Telefono';
 
     // Feed público: todas menos las descartadas
@@ -20,14 +20,14 @@ class DenunciationController extends Controller
 
         foreach ($denuncias as $denuncia) {
             $denuncia->reportado_por = $this->quienReporto($denuncia);
-            // Se oculta el usuario completo: solo sale el texto de "reportado por"
+            // Solo sale el texto de "reportado por", nunca el usuario
             $denuncia->makeHidden('user');
         }
 
         return $denuncias;
     }
 
-    // Pestaña "Mías": solo las denuncias del usuario con sesión
+    // Pestaña "Mías"
     public function mias(Request $request)
     {
         return Denunciation::with('evidences', self::FUNDACION)
@@ -36,8 +36,7 @@ class DenunciationController extends Controller
             ->get();
     }
 
-    // "Hacerme cargo": el UPDATE solo afecta si nadie la tomó antes,
-    // así dos fundaciones no se quedan con el mismo caso
+    // "Hacerme cargo": el UPDATE solo afecta si nadie la tomó antes
     public function reclamar(Request $request, Denunciation $denuncia)
     {
         $asignadas = Denunciation::where('id', $denuncia->id)
@@ -56,12 +55,12 @@ class DenunciationController extends Controller
         return $denuncia->fresh(['evidences', self::FUNDACION]);
     }
 
-    // El admin verifica o descarta; la fundación cambia el estado de su propio caso (por ejemplo, a "resuelta")
+    // El admin cambia cualquier estado; la fundación solo el de su propio caso
     public function cambiarEstado(Request $request, Denunciation $denuncia)
     {
-        $estado = $request->validate([
+        $datos = $request->validate([
             'Estado_denuncia' => 'required|in:pendiente,verificada,en_rescate,resuelta,descartada',
-        ])['Estado_denuncia'];
+        ]);
 
         $usuario = $request->user();
         $esAdmin = $usuario->role->Nombre_rol === 'admin';
@@ -69,7 +68,7 @@ class DenunciationController extends Controller
 
         abort_if(! $esAdmin && ! $esSuCaso, 403, 'No puedes cambiar el estado de esta denuncia.');
 
-        $denuncia->update(['Estado_denuncia' => $estado]);
+        $denuncia->update($datos);
 
         return $denuncia->fresh(['evidences', self::FUNDACION]);
     }
@@ -78,55 +77,45 @@ class DenunciationController extends Controller
     public function store(Request $request)
     {
         $datos = $request->validate([
-            'Tipo_denuncia' => 'required|string|max:50',
-            'Descripcion_hecho' => 'required|string',
-            'Ubicacion' => 'required|string|max:255',
+            'Tipo_denuncia' => 'required',
+            'Descripcion_hecho' => 'required',
+            'Ubicacion' => 'required',
             'Latitud' => 'nullable|numeric',
             'Longitud' => 'nullable|numeric',
             'Anonima' => 'boolean',
-            'Urgencia' => 'nullable|in:Alta,Media,Baja',
+            'Urgencia' => 'in:Alta,Media,Baja',
             'evidencias' => 'array|max:5',
             // Si solo van a aceptar fotos: quitar mp4 y webm, y bajar max a 5120
             'evidencias.*' => 'file|mimes:jpg,jpeg,png,webp,mp4,webm|max:20480',
         ]);
 
-        $denuncia = Denunciation::create([
-            'Tipo_denuncia' => $datos['Tipo_denuncia'],
-            'Descripcion_hecho' => $datos['Descripcion_hecho'],
-            'Ubicacion' => $datos['Ubicacion'],
-            'Latitud' => $datos['Latitud'] ?? null,
-            'Longitud' => $datos['Longitud'] ?? null,
-            'Anonima' => $datos['Anonima'] ?? false,
-            'Urgencia' => $datos['Urgencia'] ?? 'Media',
-            // Si trae token se guarda quién fue (para "Mías"), aunque sea anónima
+        // Se guarda quién fue (para "Mías") aunque sea anónima; la API nunca lo devuelve
+        $denuncia = Denunciation::create($datos + [
             'Id_usuario' => $request->user('sanctum')?->id,
         ]);
 
         foreach ($request->file('evidencias', []) as $archivo) {
-            $tipo = $archivo->getMimeType();
-            $tamano = $archivo->getSize();
-            $ruta = $archivo->store('denuncias', 'public');
-
             $denuncia->evidences()->create([
-                // Se guarda la URL completa, igual que las de ejemplo (Unsplash)
-                'Url' => asset('storage/'.$ruta),
-                'Tipo_archivo' => $tipo,
-                'Tamano_bytes' => $tamano,
+                'Tipo_archivo' => $archivo->getMimeType(),
+                'Tamano_bytes' => $archivo->getSize(),
+                'Url' => asset('storage/'.$archivo->store('denuncias', 'public')),
             ]);
         }
 
-        // fresh() vuelve a leer la fila para incluir los valores por defecto de la base
         return response()->json($denuncia->fresh(['evidences', self::FUNDACION]), 201);
     }
 
-    private function quienReporto(Denunciation $denuncia): array
+    private function quienReporto(Denunciation $denuncia)
     {
         if ($denuncia->Anonima || ! $denuncia->user) {
             return ['tipo' => 'anonimo', 'nombre' => 'Denuncia anónima'];
         }
 
-        if ($denuncia->user->foundation) {
-            return ['tipo' => 'fundacion', 'nombre' => $denuncia->user->foundation->Nombre_organizacion];
+        // Método que ya existe en el modelo Denunciation
+        $fundacion = $denuncia->reportadoPorFundacion();
+
+        if ($fundacion) {
+            return ['tipo' => 'fundacion', 'nombre' => $fundacion->Nombre_organizacion];
         }
 
         return ['tipo' => 'civil', 'nombre' => 'Usuario registrado'];

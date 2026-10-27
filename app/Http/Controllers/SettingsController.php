@@ -24,11 +24,11 @@ class SettingsController extends Controller
     public function actualizar(Request $request)
     {
         $datos = $request->validate([
-            'Nombre_plataforma' => 'sometimes|required|string|max:100',
-            'Email_soporte' => 'nullable|email|max:255',
+            'Nombre_plataforma' => 'sometimes|required',
+            'Email_soporte' => 'nullable|email',
             'Notificaciones_activas' => 'boolean',
             'Modo_mantenimiento' => 'boolean',
-            'Telefono_emergencia' => 'nullable|string|max:50',
+            'Telefono_emergencia' => 'nullable',
         ]);
 
         $configuracion = PlatformSetting::firstOrFail();

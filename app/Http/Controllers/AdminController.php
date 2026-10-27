@@ -53,7 +53,7 @@ class AdminController extends Controller
     // Fundaciones con el correo de su cuenta y cuántas mascotas tienen en el refugio
     public function fundaciones()
     {
-        return Foundation::with('user:id,email')
+        return Foundation::with('user:id,email', 'evidences')
             ->withCount(['pets as ocupacion' => fn ($q) => $q->where('Estado_adopcion', '!=', 'adoptado')])
             ->latest()
             ->get();

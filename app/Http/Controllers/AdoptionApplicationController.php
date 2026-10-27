@@ -8,18 +8,33 @@ use Illuminate\Http\Request;
 
 class AdoptionApplicationController extends Controller
 {
-    // Formulario de Adopcion.jsx
+    // Las solicitudes del usuario con sesión, con la mascota y la fundación (para avisarle qué decidieron)
+    public function mias(Request $request)
+    {
+        $perfil = $request->user()->userCivil;
+
+        // Sin perfil todavía no pudo enviar ninguna
+        if (! $perfil) {
+            return [];
+        }
+
+        return Adoption_application::where('Id_usuarioCivil', $perfil->id)
+            ->with('pet:id,Nombre,Foto_url,Estado_adopcion', 'foundation:id,Nombre_organizacion,Telefono')
+            ->latest('Fecha_envio')
+            ->get();
+    }
+
     public function store(Request $request)
     {
         $datos = $request->validate([
             'Id_mascota' => 'required|exists:pets,id',
-            'Mensaje_presentacion' => 'required|string',
-            'Experiencia_mascotas' => 'required|string',
-            'Tiempo_disponible' => 'required|string|max:50',
+            'Mensaje_presentacion' => 'required',
+            'Experiencia_mascotas' => 'required',
+            'Tiempo_disponible' => 'required',
             'Compromiso_veterinario' => 'boolean',
         ]);
 
-        // Sin perfil no se puede adoptar: Perfil.jsx crea la fila en usercivils
+        // Sin perfil completo no se puede adoptar (Perfil.jsx crea la fila en usercivils)
         $perfil = $request->user()->userCivil;
 
         if (! $perfil) {
@@ -28,8 +43,8 @@ class AdoptionApplicationController extends Controller
 
         $mascota = Pet::findOrFail($datos['Id_mascota']);
 
+        // La fundación sale de la mascota y el adoptante del token, no del formulario
         $solicitud = Adoption_application::create($datos + [
-            // Estos dos salen del servidor, no del cliente
             'Id_usuarioCivil' => $perfil->id,
             'Id_fundacion' => $mascota->Id_fundacion,
         ]);

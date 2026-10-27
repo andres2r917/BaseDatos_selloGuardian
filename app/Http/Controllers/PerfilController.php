@@ -7,32 +7,31 @@ use Illuminate\Validation\Rule;
 
 class PerfilController extends Controller
 {
-    // Perfil.jsx: crea o actualiza los datos del usuario civil que tiene la sesión
     public function guardar(Request $request)
     {
         $usuario = $request->user();
 
-        abort_if($usuario->role->Nombre_rol !== 'civil', 403, 'Solo los usuarios civiles tienen este perfil.');
-
         $datos = $request->validate([
-            // ignore(): permite guardar de nuevo sin chocar con su propio documento
-            'Documento_identidad' => ['required', 'string', 'max:30', Rule::unique('usercivils', 'Documento_identidad')->ignore($usuario->userCivil?->id)],
+            // ignore() deja guardar de nuevo sin chocar con su propio documento
+            'Documento_identidad' => ['required', Rule::unique('usercivils', 'Documento_identidad')->ignore($usuario->userCivil?->id)],
             'Fecha_nacimiento' => 'required|date',
-            'Tipo_vivienda' => 'required|string|max:50',
-            'Ocupacion' => 'nullable|string|max:255',
-            'Direccion' => 'nullable|string|max:255',
-            'Salario' => 'nullable|numeric|min:0',
-            'Telefono' => 'nullable|string|max:50',
+            'Tipo_vivienda' => 'required',
+            'Ocupacion' => 'nullable',
+            'Direccion' => 'nullable',
+            'Salario' => 'nullable|numeric',
+            'Telefono' => 'nullable',
             'Tiene_hijos' => 'required|boolean',
         ]);
 
-        // Id_usuario lo pone la relación (sale del token, no del cliente)
+        // Id_usuario lo pone la relación (sale del token, no del formulario)
         $usuario->userCivil()->updateOrCreate([], $datos);
+
+        // El teléfono también queda en la cuenta (users), para contactar al usuario sin buscar en su perfil
+        $usuario->update(['Telefono' => $datos['Telefono'] ?? null]);
 
         return $usuario->load('role', 'userCivil', 'foundation');
     }
 
-    // Foto de perfil de cualquier usuario (multipart, campo "Foto")
     public function subirFoto(Request $request)
     {
         $request->validate(['Foto' => 'required|image|max:2048']);

@@ -8,19 +8,18 @@ use Illuminate\Http\Request;
 
 class FundacionPanelController extends Controller
 {
-    // ── Mascotas ────────────────────────────────────────────────
+    // ── Mascotas ──
 
-    // Todas las mascotas de la fundación (Expedientes y Kanban)
     public function mascotas(Request $request)
     {
         return $request->user()->foundation->pets()->latest()->get();
     }
 
-    // Formulario "Ingresar mascota". La relación pone Id_fundacion sola.
     public function crearMascota(Request $request)
     {
         $datos = $request->validate($this->reglasMascota('required'));
 
+        // La relación pone Id_fundacion sola
         $mascota = $request->user()->foundation->pets()->create(
             $this->conFoto($request, $datos) + ['Estado_adopcion' => 'en_cuarentena']
         );
@@ -28,18 +27,28 @@ class FundacionPanelController extends Controller
         return response()->json($mascota, 201);
     }
 
-    // Editar datos o mover la tarjeta en el Kanban (Estado_adopcion)
+    // Sirve para editar datos y para mover la tarjeta en el Kanban (Estado_adopcion)
     public function actualizarMascota(Request $request, Pet $pet)
     {
-        $this->soloMiaMascota($request, $pet);
+        abort_if($pet->Id_fundacion !== $request->user()->foundation->id, 403, 'Esta mascota no es de tu fundación.');
 
         $datos = $request->validate($this->reglasMascota('sometimes|required'));
         $pet->update($this->conFoto($request, $datos));
 
+        // Al cerrar la adopción, las solicitudes que seguían abiertas para esta mascota se rechazan
+        if ($pet->Estado_adopcion === 'adoptado') {
+            $pet->adoptionApplications()
+                ->whereIn('Estado_solicitud', ['pendiente', 'en_evaluacion'])
+                ->update([
+                    'Estado_solicitud' => 'rechazada',
+                    'Comentarios_fundacion' => 'La mascota ya fue adoptada por otra familia.',
+                ]);
+        }
+
         return $pet;
     }
 
-    // ── Solicitudes de adopción ─────────────────────────────────
+    // ── Solicitudes de adopción ──
 
     public function solicitudes(Request $request)
     {
@@ -50,14 +59,14 @@ class FundacionPanelController extends Controller
             ->get();
     }
 
-    // Aprobar, rechazar o pasar a evaluación. Al aprobar, la mascota queda "en_proceso".
+    // Al aprobar, la mascota queda "en_proceso"
     public function resolverSolicitud(Request $request, Adoption_application $solicitud)
     {
         abort_if($solicitud->Id_fundacion !== $request->user()->foundation->id, 403, 'Esta solicitud no es de tu fundación.');
 
         $datos = $request->validate([
             'Estado_solicitud' => 'required|in:pendiente,en_evaluacion,aprobada,rechazada',
-            'Comentarios_fundacion' => 'nullable|string',
+            'Comentarios_fundacion' => 'nullable',
         ]);
 
         $solicitud->update([
@@ -72,19 +81,19 @@ class FundacionPanelController extends Controller
         return $solicitud->load('userCivil.user', 'pet');
     }
 
-    // ── Ajustes de la fundación ─────────────────────────────────
+    // ── Ajustes de la fundación ──
 
-    // FundacionAjustes.jsx: cada tarjeta manda solo sus campos, por eso "sometimes"
+    // Cada tarjeta de FundacionAjustes.jsx manda solo sus campos, por eso "sometimes"
     public function actualizarPerfil(Request $request)
     {
         $datos = $request->validate([
-            'Nombre_organizacion' => 'sometimes|required|string|max:255',
-            'Nombre_representante' => 'sometimes|required|string|max:255',
-            'Cedula_representante' => 'sometimes|required|string|max:30',
-            'Telefono' => 'sometimes|required|string|max:50',
-            'Direccion' => 'sometimes|required|string|max:255',
-            'Redes' => 'nullable|string|max:255',
-            'Descripcion' => 'nullable|string',
+            'Nombre_organizacion' => 'sometimes|required',
+            'Nombre_representante' => 'sometimes|required',
+            'Cedula_representante' => 'sometimes|required',
+            'Telefono' => 'sometimes|required',
+            'Direccion' => 'sometimes|required',
+            'Redes' => 'nullable',
+            'Descripcion' => 'nullable',
             'Capacidad' => 'sometimes|required|integer|min:1',
         ]);
 
@@ -93,33 +102,34 @@ class FundacionPanelController extends Controller
         return $request->user()->load('role', 'userCivil', 'foundation');
     }
 
-    // ── Auxiliares ──────────────────────────────────────────────
+    // ── Auxiliares ──
 
-    private function reglasMascota(string $presencia): array
+    // $presencia es 'required' al crear y 'sometimes|required' al editar
+    private function reglasMascota($presencia)
     {
         return [
-            'Nombre' => "$presencia|string|max:100",
-            'Especie' => "$presencia|string|max:30",
-            'Raza' => "$presencia|string|max:100",
-            'Edad_estimada' => "$presencia|string|max:50",
-            'Tamano' => "$presencia|string|max:30",
-            'Estado_salud' => "$presencia|string|max:100",
-            'Descripcion_personalidad' => "$presencia|string",
-            'Sexo' => 'nullable|string|max:20',
-            'Temperamento' => 'nullable|string|max:50',
-            'Convivencia' => 'nullable|string|max:150',
+            'Nombre' => $presencia,
+            'Especie' => $presencia,
+            'Raza' => $presencia,
+            'Edad_estimada' => $presencia,
+            'Tamano' => $presencia,
+            'Estado_salud' => $presencia,
+            'Descripcion_personalidad' => $presencia,
+            'Sexo' => 'nullable',
+            'Temperamento' => 'nullable',
+            'Convivencia' => 'nullable',
             'Vacunado' => 'boolean',
             'Esterilizado' => 'boolean',
             'Desparasitado' => 'boolean',
             'Estado_adopcion' => 'in:en_cuarentena,disponible,en_proceso,adoptado',
-            // La foto puede venir como archivo (Foto) o como enlace (Foto_url)
-            'Foto_url' => 'nullable|string|max:500',
+            // La foto puede llegar como archivo (Foto) o como enlace (Foto_url)
+            'Foto_url' => 'nullable',
             'Foto' => 'nullable|image|max:4096',
         ];
     }
 
-    // Si llegó un archivo, lo guarda y reemplaza Foto_url por su URL completa
-    private function conFoto(Request $request, array $datos): array
+    // Si llegó un archivo, se guarda y su URL reemplaza a Foto_url
+    private function conFoto(Request $request, array $datos)
     {
         unset($datos['Foto']);
 
@@ -128,11 +138,5 @@ class FundacionPanelController extends Controller
         }
 
         return $datos;
-    }
-
-    // Una fundación solo puede tocar sus propias mascotas
-    private function soloMiaMascota(Request $request, Pet $pet): void
-    {
-        abort_if($pet->Id_fundacion !== $request->user()->foundation->id, 403, 'Esta mascota no es de tu fundación.');
     }
 }

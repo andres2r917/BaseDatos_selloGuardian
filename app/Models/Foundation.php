@@ -29,6 +29,10 @@ class Foundation extends Model
     public function user() {
         return $this->belongsTo('App\Models\User', 'Id_usuario');
     }
+    // Fotos y videos que adjuntó al registrarse (opcionales)
+    public function evidences() {
+        return $this->hasMany('App\Models\FoundationEvidence', 'Id_fundacion');
+    }
     public function pets() {
         return $this->hasMany('App\Models\Pet', 'Id_fundacion');
     }
