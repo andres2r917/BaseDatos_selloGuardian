@@ -66,7 +66,7 @@ class DatabaseSeeder extends Seeder
                 'Foto_url' => 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=300&fit=crop',
             ],
             [
-                'Nombre' => 'Luna', 'Especie' => 'gato', 'Raza' => 'Criolla', 'Sexo' => 'Hembra',
+                'Nombre' => 'Luna', 'Especie' => 'perro', 'Raza' => 'Criolla', 'Sexo' => 'Hembra',
                 'Edad_estimada' => '1 año', 'Tamano' => 'pequeño', 'Estado_salud' => 'Vacunado',
                 'Temperamento' => 'Cariñosa', 'Vacunado' => true, 'Esterilizado' => false, 'Desparasitado' => true,
                 'Descripcion_personalidad' => 'Muy dulce, fue rescatada de la calle.',
